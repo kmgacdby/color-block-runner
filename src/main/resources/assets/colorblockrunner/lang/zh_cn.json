@@ -1,0 +1,16 @@
+{
+  "key.colorblockrunner.toggle": "切换颜色方块追踪",
+  "key.colorblockrunner.config": "打开颜色方块追踪设置",
+  "category.colorblockrunner": "颜色方块追踪",
+  "screen.colorblockrunner.title": "颜色方块追踪",
+  "screen.colorblockrunner.enabled": "启用：",
+  "screen.colorblockrunner.on": "开",
+  "screen.colorblockrunner.off": "关",
+  "screen.colorblockrunner.range": "搜索范围：%s 格",
+  "screen.colorblockrunner.range_minus": "-",
+  "screen.colorblockrunner.range_plus": "+",
+  "screen.colorblockrunner.auto_jump": "自动跳跃：",
+  "screen.colorblockrunner.auto_sprint": "自动疾跑：",
+  "screen.colorblockrunner.close": "关闭",
+  "screen.colorblockrunner.hint": "切换键和设置键可在“选项 → 控制”中重新绑定。"
+}
