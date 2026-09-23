@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "colorblockrunner",
+  "version": "${version}",
+  "name": "Color Block Runner",
+  "description": "Runs and jumps at maximum speed toward the nearest loaded block with the same Minecraft DyeColor as the held block.",
+  "authors": ["OpenAI"],
+  "environment": "client",
+  "entrypoints": { "client": ["com.example.colorblockrunner.ColorBlockRunnerClient"] },
+  "depends": {
+    "fabricloader": ">=0.15.11",
+    "minecraft": "~1.20.6",
+    "java": ">=21",
+    "fabric-api": ">=0.100.8"
+  }
+}
