@@ -1,0 +1,16 @@
+{
+  "key.colorblockrunner.toggle": "Toggle Color Block Runner",
+  "key.colorblockrunner.config": "Open Color Block Runner Settings",
+  "category.colorblockrunner": "Color Block Runner",
+  "screen.colorblockrunner.title": "Color Block Runner",
+  "screen.colorblockrunner.enabled": "Enabled: ",
+  "screen.colorblockrunner.on": "ON",
+  "screen.colorblockrunner.off": "OFF",
+  "screen.colorblockrunner.range": "Search range: %s blocks",
+  "screen.colorblockrunner.range_minus": "-",
+  "screen.colorblockrunner.range_plus": "+",
+  "screen.colorblockrunner.auto_jump": "Auto-jump: ",
+  "screen.colorblockrunner.auto_sprint": "Auto-sprint: ",
+  "screen.colorblockrunner.close": "Close",
+  "screen.colorblockrunner.hint": "Toggle/settings keys are rebindable in Options > Controls."
+}
