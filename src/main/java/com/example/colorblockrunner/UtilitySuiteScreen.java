@@ -7,14 +7,11 @@ import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
 public class UtilitySuiteScreen extends Screen {
- private final Screen parent; private int selected=0; private int binding=-1;
+ private final Screen parent; private int selected=0; private int binding=-1; private int dragging=-1;
  private final String[] names={"Mushroom Stew","Color Block Runner","Arrow Dodge"};
  protected UtilitySuiteScreen(Screen parent){super(Text.literal("Utility Suite"));this.parent=parent;}
 
  @Override public void render(DrawContext d,int mx,int my,float delta){
-  // Do not call renderBackground() or super.render() here: both can redraw the
-  // vanilla screen background after our custom UI and cause the menu to appear blurred.
-  // Draw our own full-screen backdrop first so the UI remains on the top layer.
   d.fill(0,0,width,height,0xE916111E);
   int left=30,top=52,w=235,row=58;
   d.fill(left-8,top-32,left+w+8,top+3,0xFF28212D);
@@ -33,7 +30,7 @@ public class UtilitySuiteScreen extends Screen {
   int rx=295;
   d.drawTextWithShadow(textRenderer,names[selected],rx,top,0xFFFFFFFF);
   d.fill(rx,top+22,width-30,top+23,0xFF5B4C5A);
-  drawDetails(d,rx,top+45);
+  drawDetails(d,rx,top+45,mx,my);
 
   int bindY=height-78;
   d.fill(rx,bindY,width-30,bindY+30,binding>=0?0xFFF09BD9:0xFF403544);
@@ -46,17 +43,62 @@ public class UtilitySuiteScreen extends Screen {
   d.drawTextWithShadow(textRenderer,"Click the key label below to change it",left,menuY+18,0xFF938A94);
  }
 
- private void drawDetails(DrawContext d,int x,int y){
+ private void drawDetails(DrawContext d,int x,int y,int mx,int my){
   UnifiedConfig c=UnifiedConfig.get();
-  if(selected==0){line(d,x,y,"Enabled",c.stewEnabled);line(d,x,y+30,"Move delay",c.stewDelay*50+" ms");}
-  else if(selected==1){line(d,x,y,"Enabled",c.runnerEnabled);line(d,x,y+30,"Search range",c.runnerRange+" blocks");line(d,x,y+60,"Auto sprint",c.runnerSprint);line(d,x,y+90,"Auto jump",c.runnerJump);}
-  else{line(d,x,y,"Enabled",c.dodgeEnabled);line(d,x,y+30,"Detection range",c.dodgeRange+" blocks");line(d,x,y+60,"Side-step first",true);line(d,x,y+90,"Auto jump",c.dodgeJump);line(d,x,y+120,"Auto sneak",c.dodgeSneak);line(d,x,y+150,"Ignore own arrows",c.ignoreOwnArrows);line(d,x,y+180,"Show landing point",c.showLanding);}
+  if(selected==0){
+   toggleRow(d,x,y,"Enabled",c.stewEnabled,mx,my,0);
+   slider(d,x,y+38,"Move delay",c.stewDelay,0,20,mx,my,1," ticks");
+   d.drawTextWithShadow(textRenderer,"Lower delay = faster transfers",x,y+70,0xFFAAA1AB);
+  } else if(selected==1){
+   toggleRow(d,x,y,"Enabled",c.runnerEnabled,mx,my,0);
+   slider(d,x,y+38,"Search range",c.runnerRange,4,64,mx,my,2," blocks");
+   toggleRow(d,x,y+76,"Auto sprint",c.runnerSprint,mx,my,3);
+   toggleRow(d,x,y+114,"Auto jump",c.runnerJump,mx,my,4);
+  } else {
+   toggleRow(d,x,y,"Enabled",c.dodgeEnabled,mx,my,0);
+   slider(d,x,y+38,"Detection range",c.dodgeRange,4,64,mx,my,2," blocks");
+   d.drawTextWithShadow(textRenderer,"Side-step first",x,y+76,0xFFEDE7ED);
+   d.drawTextWithShadow(textRenderer,"ALWAYS",x+230,y+76,0xFFFFB8E5);
+   toggleRow(d,x,y+114,"Auto jump",c.dodgeJump,mx,my,3);
+   toggleRow(d,x,y+152,"Auto sneak",c.dodgeSneak,mx,my,4);
+   toggleRow(d,x,y+190,"Ignore own arrows",c.ignoreOwnArrows,mx,my,5);
+   toggleRow(d,x,y+228,"Show landing point",c.showLanding,mx,my,6);
+  }
  }
- private void line(DrawContext d,int x,int y,String a,Object b){d.drawTextWithShadow(textRenderer,a,x,y,0xFFEDE7ED);d.drawTextWithShadow(textRenderer,String.valueOf(b),x+230,y,0xFFFFB8E5);}
+
+ private void toggleRow(DrawContext d,int x,int y,String label,boolean value,int mx,int my,int id){
+  boolean hover=mx>=x&&mx<=width-30&&my>=y-4&&my<=y+24;
+  if(hover)d.fill(x-6,y-7,width-30,y+27,0x443F3643);
+  d.drawTextWithShadow(textRenderer,label,x,y,0xFFEDE7ED);
+  d.drawTextWithShadow(textRenderer,value?"ON":"OFF",x+230,y,value?0xFFFFB8E5:0xFF9F959F);
+ }
+
+ private void slider(DrawContext d,int x,int y,String label,int value,int min,int max,int mx,int my,int id,String suffix){
+  d.drawTextWithShadow(textRenderer,label,x,y,0xFFEDE7ED);
+  d.drawTextWithShadow(textRenderer,value+suffix,x+230,y,0xFFFFB8E5);
+  int sy=y+18, sx=x, sw=width-30-x;
+  d.fill(sx,sy,sx+sw,sy+4,0xFF514653);
+  int knob=sx+(int)((value-min)/(double)(max-min)*sw);
+  d.fill(sx,sy,knob,sy+4,0xFFE9A0D8);
+  d.fill(knob-4,sy-4,knob+4,sy+12,0xFFF5B5E3);
+ }
+
  private boolean isEnabled(int i){UnifiedConfig c=UnifiedConfig.get();return i==0?c.stewEnabled:i==1?c.runnerEnabled:c.dodgeEnabled;}
  private int keyFor(int i){UnifiedConfig c=UnifiedConfig.get();return i==0?c.stewKey:i==1?c.runnerKey:c.dodgeKey;}
  private String keyName(int key){try{return InputUtil.fromKeyCode(key,0).getLocalizedText().getString();}catch(Exception e){return "NONE";}}
  private void toggle(int i){UnifiedConfig c=UnifiedConfig.get();if(i==0)c.stewEnabled=!c.stewEnabled;else if(i==1)c.runnerEnabled=!c.runnerEnabled;else c.dodgeEnabled=!c.dodgeEnabled;c.save();}
+ private void toggleDetail(UnifiedConfig c,int id){
+  if(selected==0)return;
+  if(selected==1){if(id==3)c.runnerSprint=!c.runnerSprint;else if(id==4)c.runnerJump=!c.runnerJump;}
+  else {if(id==3)c.dodgeJump=!c.dodgeJump;else if(id==4)c.dodgeSneak=!c.dodgeSneak;else if(id==5)c.ignoreOwnArrows=!c.ignoreOwnArrows;else if(id==6)c.showLanding=!c.showLanding;}
+  c.save();
+ }
+ private void setSlider(UnifiedConfig c,int id,double mouseX){
+  int x=295, sw=width-30-x; double t=Math.max(0,Math.min(1,(mouseX-x)/(double)sw));
+  if(id==1)c.stewDelay=(int)Math.round(t*20);
+  else if(id==2){int min=4,max=64;if(selected==1)c.runnerRange=min+(int)Math.round(t*(max-min));else c.dodgeRange=min+(int)Math.round(t*(max-min));}
+  c.save();
+ }
  private void startBinding(int i){binding=i;}
 
  @Override public boolean mouseClicked(double mx,double my,int button){
@@ -64,8 +106,30 @@ public class UtilitySuiteScreen extends Screen {
   if(mx>=left&&mx<=left+w){int i=(int)((my-top)/row);if(i>=0&&i<3){if(button==0){toggle(i);selected=i;}else if(button==1){selected=i;}else if(button==2){selected=i;startBinding(i);}return true;}}
   int rx=295,bindY=height-78;
   if(mx>=rx&&mx<=width-30&&my>=bindY&&my<=bindY+30){startBinding(selected);return true;}
+  if(mx>=rx&&mx<=width-30){
+   UnifiedConfig c=UnifiedConfig.get();
+   if(selected==0){if(my>=97&&my<=125){setSlider(c,1,mx);dragging=1;return true;}}
+   else if(selected==1){
+    if(my>=135&&my<=170){setSlider(c,2,mx);dragging=2;return true;}
+    if(my>=171&&my<=203){toggleDetail(c,3);return true;}
+    if(my>=209&&my<=241){toggleDetail(c,4);return true;}
+   } else {
+    if(my>=135&&my<=170){setSlider(c,2,mx);dragging=2;return true;}
+    if(my>=209&&my<=241){toggleDetail(c,3);return true;}
+    if(my>=247&&my<=279){toggleDetail(c,4);return true;}
+    if(my>=285&&my<=317){toggleDetail(c,5);return true;}
+    if(my>=323&&my<=355){toggleDetail(c,6);return true;}
+   }
+  }
   return super.mouseClicked(mx,my,button);
  }
+
+ @Override public boolean mouseDragged(double mx,double my,int button,double dx,double dy){
+  if(dragging>=0){setSlider(UnifiedConfig.get(),dragging,mx);return true;}
+  return super.mouseDragged(mx,my,button,dx,dy);
+ }
+ @Override public boolean mouseReleased(double mx,double my,int button){dragging=-1;return super.mouseReleased(mx,my,button);}
+
  @Override public boolean keyPressed(int key,int scan,int mods){
   if(binding>=0){if(key==GLFW.GLFW_KEY_ESCAPE){binding=-1;return true;}UnifiedConfig c=UnifiedConfig.get();if(binding==0)c.stewKey=key;else if(binding==1)c.runnerKey=key;else c.dodgeKey=key;c.save();binding=-1;return true;}
   if(key==GLFW.GLFW_KEY_ESCAPE){close();return true;}
