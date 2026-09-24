@@ -4,17 +4,16 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.entity.projectile.ArrowEntity;
 import net.minecraft.item.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockHitResult;
 import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
-import net.minecraft.client.render.VertexConsumerProvider;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,12 +26,12 @@ public final class ArrowDodge {
     private static final int MAX_SIM_TICKS = 100;
     private static Vec3d dangerPoint;
     private static List<Vec3d> trajectory = List.of();
+    private static Vec3d dodgeDirection = Vec3d.ZERO;
     private static int dodgeTicks;
     private static boolean controlling;
     private static boolean savedForward, savedBack, savedLeft, savedRight;
 
     private ArrowDodge() {}
-    public static Vec3d dangerPoint() { return dangerPoint; }
 
     public static void tick(MinecraftClient client) {
         UnifiedConfig c = UnifiedConfig.get();
@@ -53,8 +52,7 @@ public final class ArrowDodge {
 
         if (dodgeTicks > 0) {
             applyDodgeMovement(client);
-            dodgeTicks--;
-            if (dodgeTicks <= 0) stopMovement(client);
+            if (--dodgeTicks <= 0) stopMovement(client);
             return;
         }
 
@@ -66,16 +64,14 @@ public final class ArrowDodge {
             return;
         }
 
-        trajectory = simulateArrow(client, arrow.getPos(), arrow.getVelocity());
+        trajectory = simulatePath(client, arrow.getPos(), arrow.getVelocity());
         if (!willHitPlayer(client, trajectory)) {
             stopMovement(client);
             return;
         }
 
         Vec3d dodge = findMinimumDodge(client, trajectory);
-        if (dodge != null) {
-            startDodge(client, dodge);
-        }
+        if (dodge != null) startDodge(client, dodge);
     }
 
     private static List<Vec3d> simulateBow(MinecraftClient client) {
@@ -84,19 +80,12 @@ public final class ArrowDodge {
         float pull = Math.min(1.0f, useTicks / 20.0f);
         pull = (pull * pull + pull * 2.0f) / 3.0f;
         if (pull < 0.1f) return List.of();
-        Vec3d start = client.player.getEyePos();
-        Vec3d velocity = client.player.getRotationVector().multiply(ARROW_SPEED * pull);
-        return simulatePath(client, start, velocity);
-    }
-
-    private static List<Vec3d> simulateArrow(MinecraftClient client, Vec3d start, Vec3d velocity) {
-        return simulatePath(client, start, velocity);
+        return simulatePath(client, client.player.getEyePos(), client.player.getRotationVector().multiply(ARROW_SPEED * pull));
     }
 
     private static List<Vec3d> simulatePath(MinecraftClient client, Vec3d start, Vec3d velocity) {
         List<Vec3d> points = new ArrayList<>();
-        Vec3d p = start;
-        Vec3d v = velocity;
+        Vec3d p = start, v = velocity;
         points.add(p);
         double maxSq = UnifiedConfig.get().dodgeRange * (double) UnifiedConfig.get().dodgeRange;
         for (int i = 0; i < MAX_SIM_TICKS; i++) {
@@ -119,8 +108,9 @@ public final class ArrowDodge {
         if (path.size() < 2) return false;
         Box box = client.player.getBoundingBox().expand(0.12);
         for (int i = 1; i < path.size(); i++) {
-            if (box.raycast(path.get(i - 1), path.get(i)).isPresent()) {
-                dangerPoint = box.raycast(path.get(i - 1), path.get(i)).get();
+            var hit = box.raycast(path.get(i - 1), path.get(i));
+            if (hit.isPresent()) {
+                dangerPoint = hit.get();
                 return true;
             }
         }
@@ -129,11 +119,10 @@ public final class ArrowDodge {
 
     private static Vec3d findMinimumDodge(MinecraftClient client, List<Vec3d> path) {
         Vec3d[] dirs = cardinalDirections(client);
-        // User priority: left, right, back, forward; diagonals only when a cardinal direction cannot clear the path.
-        int[] order = {0, 1, 2, 3};
-        for (int index : order) {
+        for (int index = 0; index < 4; index++) {
             for (double distance = 0.5; distance <= 4.0; distance += 0.5) {
-                if (clearsPath(client, path, dirs[index].multiply(distance))) return dirs[index].multiply(distance);
+                Vec3d displacement = dirs[index].multiply(distance);
+                if (clearsPath(client, path, displacement)) return displacement;
             }
         }
         Vec3d[] diagonals = {
@@ -142,7 +131,8 @@ public final class ArrowDodge {
         };
         for (Vec3d dir : diagonals) {
             for (double distance = 0.5; distance <= 4.0; distance += 0.5) {
-                if (clearsPath(client, path, dir.multiply(distance))) return dir.multiply(distance);
+                Vec3d displacement = dir.multiply(distance);
+                if (clearsPath(client, path, displacement)) return displacement;
             }
         }
         return null;
@@ -170,6 +160,7 @@ public final class ArrowDodge {
             savedLeft = client.options.leftKey.isPressed();
             savedRight = client.options.rightKey.isPressed();
         }
+        dodgeDirection = displacement.normalize();
         dodgeTicks = Math.max(2, Math.min(12, (int) Math.ceil(displacement.length() / 0.22)));
         controlling = true;
         applyDodgeMovement(client);
@@ -177,24 +168,10 @@ public final class ArrowDodge {
 
     private static void applyDodgeMovement(MinecraftClient client) {
         if (!controlling) return;
-        Vec3d dir = currentDodgeDirection(client);
-        setMovementKeys(client, dir);
-    }
-
-    private static Vec3d currentDodgeDirection(MinecraftClient client) {
-        // Keep the selected world-space direction stable by using the current camera orientation each tick.
-        // This does not rotate the player's view.
-        if (dangerPoint == null) return new Vec3d(0, 0, 0);
-        Vec3d away = client.player.getPos().subtract(dangerPoint);
-        if (away.horizontalLengthSquared() < 1.0E-6) return new Vec3d(0, 0, 0);
-        return away.normalize();
-    }
-
-    private static void setMovementKeys(MinecraftClient client, Vec3d worldDir) {
         double yaw = Math.toRadians(client.player.getYaw());
         Vec3d forward = new Vec3d(-Math.sin(yaw), 0, Math.cos(yaw));
         Vec3d right = new Vec3d(Math.cos(yaw), 0, Math.sin(yaw));
-        double f = worldDir.dotProduct(forward), r = worldDir.dotProduct(right);
+        double f = dodgeDirection.dotProduct(forward), r = dodgeDirection.dotProduct(right);
         client.options.forwardKey.setPressed(f > 0.25 || savedForward);
         client.options.backKey.setPressed(f < -0.25 || savedBack);
         client.options.rightKey.setPressed(r > 0.25 || savedRight);
@@ -209,6 +186,7 @@ public final class ArrowDodge {
         client.options.rightKey.setPressed(savedRight);
         controlling = false;
         dodgeTicks = 0;
+        dodgeDirection = Vec3d.ZERO;
     }
 
     public static void render(WorldRenderContext context) {
@@ -224,12 +202,8 @@ public final class ArrowDodge {
         for (int i = 1; i < trajectory.size(); i++) {
             Vec3d a = trajectory.get(i - 1).subtract(camera);
             Vec3d b = trajectory.get(i).subtract(camera);
-            line(buffer, matrix, normal, a, b);
+            buffer.vertex(matrix, (float)a.x, (float)a.y, (float)a.z).color(255, 90, 90, 220).normal(normal, 0, 1, 0).next();
+            buffer.vertex(matrix, (float)b.x, (float)b.y, (float)b.z).color(255, 180, 90, 220).normal(normal, 0, 1, 0).next();
         }
-    }
-
-    private static void line(VertexConsumer buffer, Matrix4f matrix, Matrix3f normal, Vec3d a, Vec3d b) {
-        buffer.vertex(matrix, (float)a.x, (float)a.y, (float)a.z).color(255, 90, 90, 220).normal(normal, 0, 1, 0).next();
-        buffer.vertex(matrix, (float)b.x, (float)b.y, (float)b.z).color(255, 180, 90, 220).normal(normal, 0, 1, 0).next();
     }
 }
