@@ -8,6 +8,7 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.entity.projectile.ArrowEntity;
 import net.minecraft.item.Items;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockHitResult;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -58,9 +59,7 @@ public final class ArrowDodge {
 
         if (arrow == null) {
             stopMovement(client);
-            if (client.player.isUsingItem() && client.player.getActiveItem().isOf(Items.BOW)) {
-                trajectory = simulateBow(client);
-            }
+            if (client.player.isUsingItem() && client.player.getActiveItem().isOf(Items.BOW)) trajectory = simulateBow(client);
             return;
         }
 
@@ -92,7 +91,7 @@ public final class ArrowDodge {
             Vec3d next = p.add(v);
             if (next.squaredDistanceTo(client.player.getPos()) > maxSq && p.squaredDistanceTo(client.player.getPos()) > maxSq) break;
             BlockHitResult hit = client.world.raycast(new RaycastContext(p, next, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, client.player));
-            if (hit.getType() != BlockHitResult.Type.MISS) {
+            if (hit.getType() != HitResult.Type.MISS) {
                 points.add(hit.getPos());
                 break;
             }
@@ -140,9 +139,7 @@ public final class ArrowDodge {
 
     private static boolean clearsPath(MinecraftClient client, List<Vec3d> path, Vec3d offset) {
         Box box = client.player.getBoundingBox().offset(offset).expand(0.12);
-        for (int i = 1; i < path.size(); i++) {
-            if (box.raycast(path.get(i - 1), path.get(i)).isPresent()) return false;
-        }
+        for (int i = 1; i < path.size(); i++) if (box.raycast(path.get(i - 1), path.get(i)).isPresent()) return false;
         return !client.world.getBlockCollisions(client.player, box).iterator().hasNext();
     }
 
@@ -155,10 +152,8 @@ public final class ArrowDodge {
 
     private static void startDodge(MinecraftClient client, Vec3d displacement) {
         if (!controlling) {
-            savedForward = client.options.forwardKey.isPressed();
-            savedBack = client.options.backKey.isPressed();
-            savedLeft = client.options.leftKey.isPressed();
-            savedRight = client.options.rightKey.isPressed();
+            savedForward = client.options.forwardKey.isPressed(); savedBack = client.options.backKey.isPressed();
+            savedLeft = client.options.leftKey.isPressed(); savedRight = client.options.rightKey.isPressed();
         }
         dodgeDirection = displacement.normalize();
         dodgeTicks = Math.max(2, Math.min(12, (int) Math.ceil(displacement.length() / 0.22)));
@@ -180,13 +175,9 @@ public final class ArrowDodge {
 
     private static void stopMovement(MinecraftClient client) {
         if (!controlling) return;
-        client.options.forwardKey.setPressed(savedForward);
-        client.options.backKey.setPressed(savedBack);
-        client.options.leftKey.setPressed(savedLeft);
-        client.options.rightKey.setPressed(savedRight);
-        controlling = false;
-        dodgeTicks = 0;
-        dodgeDirection = Vec3d.ZERO;
+        client.options.forwardKey.setPressed(savedForward); client.options.backKey.setPressed(savedBack);
+        client.options.leftKey.setPressed(savedLeft); client.options.rightKey.setPressed(savedRight);
+        controlling = false; dodgeTicks = 0; dodgeDirection = Vec3d.ZERO;
     }
 
     public static void render(WorldRenderContext context) {
@@ -200,8 +191,7 @@ public final class ArrowDodge {
         Matrix3f normal = context.matrixStack().peek().getNormalMatrix();
         Vec3d camera = context.camera().getPos();
         for (int i = 1; i < trajectory.size(); i++) {
-            Vec3d a = trajectory.get(i - 1).subtract(camera);
-            Vec3d b = trajectory.get(i).subtract(camera);
+            Vec3d a = trajectory.get(i - 1).subtract(camera), b = trajectory.get(i).subtract(camera);
             buffer.vertex(matrix, (float)a.x, (float)a.y, (float)a.z).color(255, 90, 90, 220).normal(normal, 0, 1, 0).next();
             buffer.vertex(matrix, (float)b.x, (float)b.y, (float)b.z).color(255, 180, 90, 220).normal(normal, 0, 1, 0).next();
         }
