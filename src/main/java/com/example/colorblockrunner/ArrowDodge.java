@@ -33,11 +33,7 @@ public final class ArrowDodge {
     private static void tickSafe(MinecraftClient client){
         UnifiedConfig c=UnifiedConfig.get(); trajectory=List.of();
         if(!c.dodgeEnabled||client.player==null||client.world==null||client.currentScreen!=null){stopMovement(client);return;}
-        ArrowEntity arrow=client.world.getEntitiesByClass(ArrowEntity.class,client.player.getBoundingBox().expand(Math.max(1,c.dodgeRange)),a->{
-            if(a==null||a.isRemoved()||!a.isAlive())return false;
-            if(!a.getVelocity().isFinite())return false;
-            return !c.ignoreOwnArrows||a.getOwner()!=client.player;
-        }).stream().min(Comparator.comparingDouble(a->a.squaredDistanceTo(client.player))).orElse(null);
+        ArrowEntity arrow=client.world.getEntitiesByClass(ArrowEntity.class,client.player.getBoundingBox().expand(Math.max(1,c.dodgeRange)),a->a!=null&&!a.isRemoved()&&a.isAlive()&&a.getVelocity().isFinite()&&(!c.ignoreOwnArrows||a.getOwner()!=client.player)).stream().min(Comparator.comparingDouble(a->a.squaredDistanceTo(client.player))).orElse(null);
         if(dodgeTicks>0){applyDodgeMovement(client);if(--dodgeTicks<=0)stopMovement(client);return;}
         if(arrow==null){stopMovement(client);if(client.player.isUsingItem()&&client.player.getActiveItem().isOf(Items.BOW))trajectory=simulateBow(client);return;}
         trajectory=simulatePath(client,arrow.getPos(),arrow.getVelocity());
@@ -45,31 +41,27 @@ public final class ArrowDodge {
         Vec3d dodge=findMinimumDodge(client,trajectory);if(dodge!=null)startDodge(client,dodge);
     }
     private static List<Vec3d> simulateBow(MinecraftClient client){
-        ItemStack bow=client.player.getActiveItem();int useTicks=bow.getMaxUseTime()-client.player.getItemUseTimeLeft();
+        ItemStack bow=client.player.getActiveItem();int useTicks=bow.getMaxUseTime(client.player)-client.player.getItemUseTimeLeft();
         float pull=Math.min(1.0f,useTicks/20.0f);pull=(pull*pull+pull*2.0f)/3.0f;if(pull<0.1f)return List.of();
         return simulatePath(client,client.player.getEyePos(),client.player.getRotationVector().multiply(ARROW_SPEED*pull));
     }
     private static List<Vec3d> simulatePath(MinecraftClient client,Vec3d start,Vec3d velocity){
         List<Vec3d> points=new ArrayList<>();Vec3d p=start,v=velocity;points.add(p);double maxSq=Math.max(1,UnifiedConfig.get().dodgeRange)*(double)Math.max(1,UnifiedConfig.get().dodgeRange);
         for(int i=0;i<MAX_SIM_TICKS;i++){
-            if(!p.isFinite()||!v.isFinite())break;Vec3d next=p.add(v);if(next.squaredDistanceTo(client.player.getPos())>maxSq&&p.squaredDistanceTo(client.player.getPos())>maxSq)break;
+            if(!p.isFinite()||!v.isFinite())break;Vec3d next=p.add(v);if(!next.isFinite())break;if(next.squaredDistanceTo(client.player.getPos())>maxSq&&p.squaredDistanceTo(client.player.getPos())>maxSq)break;
             BlockHitResult hit=client.world.raycast(new RaycastContext(p,next,RaycastContext.ShapeType.COLLIDER,RaycastContext.FluidHandling.NONE,client.player));
             if(hit.getType()!=HitResult.Type.MISS){points.add(hit.getPos());break;}points.add(next);p=next;v=v.multiply(DRAG).subtract(0,GRAVITY,0);if(p.y<client.world.getBottomY()-2)break;
         }return points;
     }
     private static boolean willHitPlayer(MinecraftClient client,List<Vec3d> path){Box box=client.player.getBoundingBox().expand(.12);for(int i=1;i<path.size();i++)if(path.get(i-1).isFinite()&&path.get(i).isFinite()&&box.raycast(path.get(i-1),path.get(i)).isPresent())return true;return false;}
-    private static Vec3d findMinimumDodge(MinecraftClient client,List<Vec3d> path){
-        Vec3d[] dirs=cardinalDirections(client);for(int i=0;i<4;i++)for(double d=.5;d<=4;d+=.5){Vec3d off=dirs[i].multiply(d);if(clearsPath(client,path,off))return off;}
-        Vec3d[] diagonals={dirs[0].add(dirs[2]).normalize(),dirs[0].add(dirs[3]).normalize(),dirs[1].add(dirs[2]).normalize(),dirs[1].add(dirs[3]).normalize()};
-        for(Vec3d dir:diagonals)for(double d=.5;d<=4;d+=.5){Vec3d off=dir.multiply(d);if(clearsPath(client,path,off))return off;}return null;
-    }
+    private static Vec3d findMinimumDodge(MinecraftClient client,List<Vec3d> path){Vec3d[] dirs=cardinalDirections(client);for(int i=0;i<4;i++)for(double d=.5;d<=4;d+=.5){Vec3d off=dirs[i].multiply(d);if(clearsPath(client,path,off))return off;}Vec3d[] diagonals={dirs[0].add(dirs[2]).normalize(),dirs[0].add(dirs[3]).normalize(),dirs[1].add(dirs[2]).normalize(),dirs[1].add(dirs[3]).normalize()};for(Vec3d dir:diagonals)for(double d=.5;d<=4;d+=.5){Vec3d off=dir.multiply(d);if(clearsPath(client,path,off))return off;}return null;}
     private static boolean clearsPath(MinecraftClient client,List<Vec3d> path,Vec3d offset){Box box=client.player.getBoundingBox().offset(offset).expand(.12);for(int i=1;i<path.size();i++)if(path.get(i-1).isFinite()&&path.get(i).isFinite()&&box.raycast(path.get(i-1),path.get(i)).isPresent())return false;return !client.world.getBlockCollisions(client.player,box).iterator().hasNext();}
     private static Vec3d[] cardinalDirections(MinecraftClient client){double yaw=Math.toRadians(client.player.getYaw());Vec3d f=new Vec3d(-Math.sin(yaw),0,Math.cos(yaw)),r=new Vec3d(Math.cos(yaw),0,Math.sin(yaw));return new Vec3d[]{r.multiply(-1),r,f.multiply(-1),f};}
     private static void startDodge(MinecraftClient client,Vec3d displacement){if(!controlling){savedForward=client.options.forwardKey.isPressed();savedBack=client.options.backKey.isPressed();savedLeft=client.options.leftKey.isPressed();savedRight=client.options.rightKey.isPressed();}dodgeDirection=displacement.normalize();dodgeTicks=Math.max(2,Math.min(12,(int)Math.ceil(displacement.length()/.22)));controlling=true;applyDodgeMovement(client);}
     private static void applyDodgeMovement(MinecraftClient client){if(!controlling)return;double yaw=Math.toRadians(client.player.getYaw());Vec3d f=new Vec3d(-Math.sin(yaw),0,Math.cos(yaw)),r=new Vec3d(Math.cos(yaw),0,Math.sin(yaw));double fd=dodgeDirection.dotProduct(f),rd=dodgeDirection.dotProduct(r);client.options.forwardKey.setPressed(fd>.25||savedForward);client.options.backKey.setPressed(fd<-.25||savedBack);client.options.rightKey.setPressed(rd>.25||savedRight);client.options.leftKey.setPressed(rd<-.25||savedLeft);}
     private static void stopMovement(MinecraftClient client){if(!controlling)return;client.options.forwardKey.setPressed(savedForward);client.options.backKey.setPressed(savedBack);client.options.leftKey.setPressed(savedLeft);client.options.rightKey.setPressed(savedRight);controlling=false;dodgeTicks=0;dodgeDirection=Vec3d.ZERO;}
-    public static void render(WorldRenderContext context){
-        try { renderSafe(context); } catch(Throwable ignored) { trajectory=List.of(); }
+    public static void render(WorldRenderContext context){try{renderSafe(context);}catch(Throwable ignored){trajectory=List.of();}}
+    private static void renderSafe(WorldRenderContext context){MinecraftClient client=MinecraftClient.getInstance();UnifiedConfig c=UnifiedConfig.get();if(!c.dodgeEnabled||!c.showLanding||trajectory.size()<2||client.player==null)return;VertexConsumerProvider consumers=context.consumers();if(consumers==null||context.matrixStack()==null)return;VertexConsumer buffer=consumers.getBuffer(RenderLayer.getLines());Matrix4f matrix=context.matrixStack().peek().getPositionMatrix();Vec3d camera=context.camera().getPos();
+        for(int i=1;i<trajectory.size();i++){Vec3d a=trajectory.get(i-1).subtract(camera),b=trajectory.get(i).subtract(camera);if(!a.isFinite()||!b.isFinite())continue;buffer.vertex(matrix,(float)a.x,(float)a.y,(float)a.z).color(255,90,90,220).normal(0,1,0).next();buffer.vertex(matrix,(float)b.x,(float)b.y,(float)b.z).color(255,180,90,220).normal(0,1,0).next();}
     }
-    private static void renderSafe(WorldRenderContext context){MinecraftClient client=MinecraftClient.getInstance();UnifiedConfig c=UnifiedConfig.get();if(!c.dodgeEnabled||!c.showLanding||trajectory.size()<2||client.player==null)return;VertexConsumerProvider consumers=context.consumers();if(consumers==null||context.matrixStack()==null)return;VertexConsumer buffer=consumers.getBuffer(RenderLayer.getLines());Matrix4f matrix=context.matrixStack().peek().getPositionMatrix();Vec3d camera=context.camera().getPos();for(int i=1;i<trajectory.size();i++){Vec3d a=trajectory.get(i-1).subtract(camera),b=trajectory.get(i).subtract(camera);if(!a.isFinite()||!b.isFinite())continue;buffer.vertex(matrix,(float)a.x,(float)a.y,(float)a.z).color(255,90,90,220).next();buffer.vertex(matrix,(float)b.x,(float)b.y,(float)b.z).color(255,180,90,220).next();}}
 }
