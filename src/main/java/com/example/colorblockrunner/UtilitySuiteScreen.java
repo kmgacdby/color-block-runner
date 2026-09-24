@@ -12,9 +12,11 @@ public class UtilitySuiteScreen extends Screen {
  protected UtilitySuiteScreen(Screen parent){super(Text.literal("Utility Suite"));this.parent=parent;}
 
  @Override public void render(DrawContext d,int mx,int my,float delta){
-  renderBackground(d,mx,my,delta);
+  // Do not call renderBackground() or super.render() here: both can redraw the
+  // vanilla screen background after our custom UI and cause the menu to appear blurred.
+  // Draw our own full-screen backdrop first so the UI remains on the top layer.
+  d.fill(0,0,width,height,0xE916111E);
   int left=30,top=52,w=235,row=58;
-  d.fill(18,18,width-18,height-18,0xE916111E);
   d.fill(left-8,top-32,left+w+8,top+3,0xFF28212D);
   d.drawTextWithShadow(textRenderer,"UTILITY SUITE",left,top-22,0xFFFFC4EA);
   d.drawTextWithShadow(textRenderer,"Left: toggle   Right: details   Middle: bind",left+w+25,top-22,0xFFBDB4C0);
@@ -42,7 +44,6 @@ public class UtilitySuiteScreen extends Screen {
   int menuY=height-78;
   d.drawTextWithShadow(textRenderer,"Menu key: "+keyName(UnifiedConfig.get().menuKey),left,menuY,0xFFD9D0D9);
   d.drawTextWithShadow(textRenderer,"Click the key label below to change it",left,menuY+18,0xFF938A94);
-  super.render(d,mx,my,delta);
  }
 
  private void drawDetails(DrawContext d,int x,int y){
