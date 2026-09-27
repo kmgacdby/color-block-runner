@@ -48,7 +48,7 @@ public final class BlockMemoryGhost {
         BlockPos center = client.player.getBlockPos();
         int minX = center.getX() - radius, maxX = center.getX() + radius;
         int minY = Math.max(client.world.getBottomY(), center.getY() - radius);
-        int maxY = Math.min(client.world.getTopYInclusive(), center.getY() + radius);
+        int maxY = Math.min(client.world.getTopY(), center.getY() + radius);
         int minZ = center.getZ() - radius, maxZ = center.getZ() + radius;
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
