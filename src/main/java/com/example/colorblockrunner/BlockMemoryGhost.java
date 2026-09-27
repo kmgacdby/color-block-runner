@@ -3,13 +3,12 @@ package com.example.colorblockrunner;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.BlockRenderManager;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
@@ -17,7 +16,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/** Client-side memory of nearby non-air blocks. Empty original positions are shown as ghosts. */
+/** Remembers nearby block states and renders the original block model when the position becomes air. */
 public final class BlockMemoryGhost {
     private static final Map<BlockPos, BlockState> remembered = new HashMap<>();
     private static final Set<BlockPos> dismissed = new HashSet<>();
@@ -29,17 +28,25 @@ public final class BlockMemoryGhost {
     public static void tick(MinecraftClient client) {
         UnifiedConfig c = UnifiedConfig.get();
         if (!c.ghostEnabled || client.player == null || client.world == null) return;
+
         if (--scanCooldown <= 0) {
             scanCooldown = 10;
             scan(client, Math.max(2, Math.min(32, c.ghostRange)));
         }
+
+        // Restoring the original state clears a dismissal. If it disappears again later,
+        // it will therefore become visible again.
         for (Map.Entry<BlockPos, BlockState> entry : remembered.entrySet()) {
-            if (client.world.getBlockState(entry.getKey()).equals(entry.getValue())) dismissed.remove(entry.getKey());
+            BlockPos pos = entry.getKey();
+            if (client.world.getBlockState(pos).equals(entry.getValue())) {
+                dismissed.remove(pos);
+            }
         }
+
         boolean middle = GLFW.glfwGetMouseButton(client.getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_MIDDLE) == GLFW.GLFW_PRESS;
-        if (middle && !middleWasDown && client.crosshairTarget instanceof BlockHitResult hit) {
-            BlockPos pos = hit.getBlockPos();
-            if (isGhost(client, pos)) dismissed.add(pos.toImmutable());
+        if (middle && !middleWasDown) {
+            BlockPos ghost = findGhostUnderCrosshair(client, Math.max(6, Math.min(64, c.ghostRange * 2)));
+            if (ghost != null) dismissed.add(ghost.toImmutable());
         }
         middleWasDown = middle;
     }
@@ -64,42 +71,59 @@ public final class BlockMemoryGhost {
     }
 
     private static boolean isGhost(MinecraftClient client, BlockPos pos) {
-        return remembered.containsKey(pos) && !dismissed.contains(pos) && client.world.getBlockState(pos).isAir();
+        return remembered.containsKey(pos)
+                && !dismissed.contains(pos)
+                && client.world.getBlockState(pos).isAir();
+    }
+
+    /** Ray-tests virtual ghost cubes because Minecraft's normal crosshair raycast only hits real blocks. */
+    private static BlockPos findGhostUnderCrosshair(MinecraftClient client, double maxDistance) {
+        Vec3d start = client.gameRenderer.getCamera().getPos();
+        Vec3d direction = client.player.getRotationVec(1.0F).normalize();
+        double step = 0.05D;
+        BlockPos last = null;
+        for (double distance = 0.0D; distance <= maxDistance; distance += step) {
+            Vec3d p = start.add(direction.multiply(distance));
+            BlockPos pos = BlockPos.ofFloored(p);
+            if (pos.equals(last)) continue;
+            last = pos;
+            if (isGhost(client, pos)) return pos;
+        }
+        return null;
     }
 
     public static void render(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
         UnifiedConfig c = UnifiedConfig.get();
         if (!c.ghostEnabled || client.world == null || client.player == null || remembered.isEmpty()) return;
+
         VertexConsumerProvider consumers = context.consumers();
         MatrixStack matrices = context.matrixStack();
         if (consumers == null || matrices == null) return;
 
-        VertexConsumer outline = consumers.getBuffer(RenderLayer.getLines());
-        var camera = context.camera().getPos();
+        Vec3d camera = context.camera().getPos();
+        BlockRenderManager renderer = client.getBlockRenderManager();
         matrices.push();
         matrices.translate(-camera.x, -camera.y, -camera.z);
+
         for (Map.Entry<BlockPos, BlockState> entry : remembered.entrySet()) {
             BlockPos pos = entry.getKey();
             if (!isGhost(client, pos)) continue;
-            float[] rgb = colorFor(entry.getValue());
-            double x = pos.getX() + .03, y = pos.getY() + .03, z = pos.getZ() + .03;
-            WorldRenderer.drawBox(matrices, outline, x, y, z, x + .94, y + .94, z + .94, rgb[0], rgb[1], rgb[2], .95f);
+
+            // Render the actual remembered Minecraft block model, so the ghost visibly
+            // tells the player whether the missing block was planks, stone, glass, etc.
+            matrices.push();
+            matrices.translate(pos.getX(), pos.getY(), pos.getZ());
+            int light = 0xF000F0;
+            renderer.renderBlockAsEntity(entry.getValue(), 0.0D, 0.0D, 0.0D,
+                    client.world, matrices, consumers, light, 0);
+            matrices.pop();
         }
         matrices.pop();
     }
 
-    private static float[] colorFor(BlockState state) {
-        String id = state.getBlock().getTranslationKey();
-        if (id.contains("red")) return new float[]{1f, .28f, .32f};
-        if (id.contains("blue")) return new float[]{.32f, .55f, 1f};
-        if (id.contains("green")) return new float[]{.35f, .9f, .5f};
-        if (id.contains("yellow")) return new float[]{1f, .85f, .25f};
-        if (id.contains("purple")) return new float[]{.75f, .4f, 1f};
-        if (id.contains("pink")) return new float[]{1f, .5f, .8f};
-        if (id.contains("orange")) return new float[]{1f, .55f, .2f};
-        return new float[]{.78f, .82f, .9f};
+    public static void clearAll() {
+        remembered.clear();
+        dismissed.clear();
     }
-
-    public static void clearAll() { remembered.clear(); dismissed.clear(); }
 }
