@@ -7,7 +7,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.DyeColor;
 import net.minecraft.util.math.BlockPos;
 import org.lwjgl.glfw.GLFW;
 
@@ -50,11 +49,11 @@ public class ColorBlockRunnerClient implements ClientModInitializer {
 
     private static void findTarget(MinecraftClient client) {
         ItemStack held = client.player.getMainHandStack();
-        DyeColor heldColor = null;
-        if (held.getItem() instanceof net.minecraft.item.BlockItem b) heldColor = ColorBlock.getDyeColor(b.getBlock());
-        if (heldColor == null) return;
+        String heldKey = null;
+        if (held.getItem() instanceof net.minecraft.item.BlockItem b) heldKey = ColorBlock.getMatchKey(b.getBlock());
+        if (heldKey == null) return;
         BlockPos under = client.player.getBlockPos().down();
-        if (ColorBlock.getDyeColor(client.world.getBlockState(under).getBlock()) == heldColor) return;
+        if (heldKey.equals(ColorBlock.getMatchKey(client.world.getBlockState(under).getBlock()))) return;
         int cx0 = under.getX(), cz0 = under.getZ(), y = under.getY(), r = Config.clamp(Config.range, 4, 256);
         double best = Double.MAX_VALUE; BlockPos found = null;
         for (int x = cx0 - r; x <= cx0 + r; x++) for (int z = cz0 - r; z <= cz0 + r; z++) {
@@ -62,7 +61,7 @@ public class ColorBlockRunnerClient implements ClientModInitializer {
             if (d == 0 || d > r * (double) r || d >= best) continue;
             int ccx = Math.floorDiv(x, 16), ccz = Math.floorDiv(z, 16);
             if (!client.world.getChunkManager().isChunkLoaded(ccx, ccz)) continue;
-            if (ColorBlock.getDyeColor(client.world.getBlockState(new BlockPos(x, y, z)).getBlock()) == heldColor) { best = d; found = new BlockPos(x, y, z); }
+            if (heldKey.equals(ColorBlock.getMatchKey(client.world.getBlockState(new BlockPos(x, y, z)).getBlock()))) { best = d; found = new BlockPos(x, y, z); }
         }
         target = found;
     }
@@ -81,7 +80,6 @@ public class ColorBlockRunnerClient implements ClientModInitializer {
         if (!controlling) saveInputState(client);
         client.player.setYaw((float) (Math.toDegrees(Math.atan2(dz, dx)) - 90));
         client.options.forwardKey.setPressed(true);
-        // Stop adding jump/sprint input close to a narrow target so a 1-block-wide target cannot be overshot.
         boolean close = distance <= 1.25;
         client.options.jumpKey.setPressed(!close && (Config.autoJump || savedJump));
         client.options.sprintKey.setPressed(!close && (Config.autoSprint || savedSprint));
