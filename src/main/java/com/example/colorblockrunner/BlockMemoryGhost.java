@@ -6,7 +6,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexRendering;
+import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -74,8 +74,8 @@ public final class BlockMemoryGhost {
         VertexConsumerProvider consumers = context.consumers();
         MatrixStack matrices = context.matrixStack();
         if (consumers == null || matrices == null) return;
-        VertexConsumer fill = consumers.getBuffer(RenderLayer.getDebugFilledBox());
-        VertexConsumer outline = consumers.getBuffer(RenderLayer.getDebugLineStrip(2.0));
+
+        VertexConsumer outline = consumers.getBuffer(RenderLayer.getLines());
         var camera = context.camera().getPos();
         matrices.push();
         matrices.translate(-camera.x, -camera.y, -camera.z);
@@ -83,9 +83,8 @@ public final class BlockMemoryGhost {
             BlockPos pos = entry.getKey();
             if (!isGhost(client, pos)) continue;
             float[] rgb = colorFor(entry.getValue());
-            double x = pos.getX() + .02, y = pos.getY() + .02, z = pos.getZ() + .02;
-            VertexRendering.drawFilledBox(matrices, fill, x, y, z, x + .96, y + .96, z + .96, rgb[0], rgb[1], rgb[2], .24f);
-            VertexRendering.drawBox(matrices, outline, x, y, z, x + .96, y + .96, z + .96, rgb[0], rgb[1], rgb[2], .92f);
+            double x = pos.getX() + .03, y = pos.getY() + .03, z = pos.getZ() + .03;
+            WorldRenderer.drawBox(matrices, outline, x, y, z, x + .94, y + .94, z + .94, rgb[0], rgb[1], rgb[2], .95f);
         }
         matrices.pop();
     }
