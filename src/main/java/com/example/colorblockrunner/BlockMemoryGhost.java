@@ -15,7 +15,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-/** Remembers nearby block states and renders the original block model when the position becomes air. */
 public final class BlockMemoryGhost {
     private static final Map<BlockPos, BlockState> remembered = new HashMap<>();
     private static final Set<BlockPos> dismissed = new HashSet<>();
@@ -87,7 +86,6 @@ public final class BlockMemoryGhost {
         VertexConsumerProvider consumers = context.consumers();
         MatrixStack matrices = context.matrixStack();
         if (consumers == null || matrices == null) return;
-
         Vec3d camera = context.camera().getPos();
         BlockRenderManager renderer = client.getBlockRenderManager();
         matrices.push();
@@ -97,7 +95,7 @@ public final class BlockMemoryGhost {
             if (!isGhost(client, pos)) continue;
             matrices.push();
             matrices.translate(pos.getX(), pos.getY(), pos.getZ());
-            renderer.renderBlockAsEntity(entry.getValue(), 0.0D, 0.0D, 0.0D, client.world, matrices, consumers, 0xF000F0, 0);
+            renderer.renderBlockAsEntity(entry.getValue(), matrices, consumers, 0xF000F0, 0);
             matrices.pop();
         }
         matrices.pop();
