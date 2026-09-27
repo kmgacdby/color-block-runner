@@ -15,22 +15,20 @@ public class UtilitySuiteClient implements ClientModInitializer {
     @Override public void onInitializeClient() {
         UnifiedConfig.load();
         ClientTickEvents.END_CLIENT_TICK.register(UtilitySuiteClient::tick);
-        WorldRenderEvents.AFTER_ENTITIES.register(ArrowDodge::render);
+        WorldRenderEvents.AFTER_ENTITIES.register(ArrowDodgePredictive::render);
     }
-    private static void toggleMessage(MinecraftClient client, String name, boolean enabled) {
-        if (client.player != null) client.player.sendMessage(Text.literal(name + (enabled ? " 已开启" : " 已关闭")), true);
-    }
+    private static void toggleMessage(MinecraftClient client, String name, boolean enabled) { if(client.player!=null) client.player.sendMessage(Text.literal(name+(enabled?" 已开启":" 已关闭")),true); }
     private static void tick(MinecraftClient client) {
         long w=client.getWindow().getHandle(); UnifiedConfig c=UnifiedConfig.get(); boolean menu=key(w,c.menuKey);
         if(menu&&!menuWasDown&&client.currentScreen==null)client.setScreen(new UtilitySuiteScreen(null)); menuWasDown=menu;
         if(client.currentScreen==null){
             boolean stew=key(w,c.stewKey),runner=key(w,c.runnerKey),dodge=key(w,c.dodgeKey);
-            if(stew&&!stewWasDown){c.stewEnabled=!c.stewEnabled;c.save();toggleMessage(client,"蘑菇煲自动搬运",c.stewEnabled);} 
-            if(runner&&!runnerWasDown){c.runnerEnabled=!c.runnerEnabled;c.save();ColorBlockRunnerClient.resetTarget(client);toggleMessage(client,"同色方块跑酷",c.runnerEnabled);} 
+            if(stew&&!stewWasDown){c.stewEnabled=!c.stewEnabled;c.save();toggleMessage(client,"蘑菇煲自动搬运",c.stewEnabled);}
+            if(runner&&!runnerWasDown){c.runnerEnabled=!c.runnerEnabled;c.save();ColorBlockRunnerClient.resetTarget(client);toggleMessage(client,"同色方块跑酷",c.runnerEnabled);}
             if(dodge&&!dodgeWasDown){c.dodgeEnabled=!c.dodgeEnabled;c.save();toggleMessage(client,"自动躲避箭矢",c.dodgeEnabled);}
             stewWasDown=stew;runnerWasDown=runner;dodgeWasDown=dodge;
             if(c.runnerEnabled)ColorBlockRunnerClient.tickExternal(client);else ColorBlockRunnerClient.resetTarget(client);
-            ArrowDodge.tick(client);
+            ArrowDodgePredictive.tick(client);
             if(c.stewEnabled)StewMover.tickExternal(client);
         }
     }
