@@ -6,7 +6,7 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
-/** Minimal card-style settings UI; intentionally avoids vanilla button widgets. */
+/** Modern card-style settings UI. */
 public final class UtilitySuiteScreen extends Screen {
     private final Screen parent;
     private int selected = 0, binding = -1, dragging = -1;
@@ -54,6 +54,8 @@ public final class UtilitySuiteScreen extends Screen {
             rowText(d, x, y, "状态", c.ghostEnabled); slider(d, x, y + 42, "记录范围", c.ghostRange, 4, 32, 3, " 格");
             d.drawTextWithShadow(textRenderer, "原方块消失后显示记忆虚影", x, y + 82, 0xFF87909E);
             d.drawTextWithShadow(textRenderer, "中键点按虚影可暂时取消；恢复后再次消失会重现", x, y + 100, 0xFF87909E);
+            d.fill(x, y + 118, width - 48, y + 148, 0xFF303640);
+            d.drawCenteredTextWithShadow(textRenderer, "清除全部虚影", (x + width - 48) / 2, y + 128, 0xFFE8EDF3);
         }
     }
     private void rowText(DrawContext d, int x, int y, String label, boolean on) { rowTextAt(d,x,y,label,on); }
@@ -77,7 +79,7 @@ public final class UtilitySuiteScreen extends Screen {
         if(mx>=x&&mx<=width-48){UnifiedConfig c=UnifiedConfig.get();int y=top+57;
             if(selected==0&&my>=y+35&&my<=y+75){setSlider(c,1,mx);dragging=1;return true;}
             if(selected==1){if(my>=y+35&&my<=y+75){setSlider(c,2,mx);dragging=2;return true;}if(my>=y+76&&my<=y+112){toggleDetail(c,4);return true;}if(my>=y+113&&my<=y+149){toggleDetail(c,5);return true;}}
-            if(selected==2&&my>=y+35&&my<=y+75){setSlider(c,3,mx);dragging=3;return true;}
+            if(selected==2){if(my>=y+35&&my<=y+75){setSlider(c,3,mx);dragging=3;return true;}if(my>=y+118&&my<=y+150){BlockMemoryGhost.clearAll();if(client!=null&&client.player!=null)client.player.sendMessage(Text.literal("方块记忆虚影：已清除全部"),true);return true;}}
         }
         return super.mouseClicked(mx,my,button);
     }
