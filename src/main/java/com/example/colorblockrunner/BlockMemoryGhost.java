@@ -3,10 +3,9 @@ package com.example.colorblockrunner;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.BlockRenderManager;
 import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
@@ -28,21 +27,13 @@ public final class BlockMemoryGhost {
     public static void tick(MinecraftClient client) {
         UnifiedConfig c = UnifiedConfig.get();
         if (!c.ghostEnabled || client.player == null || client.world == null) return;
-
         if (--scanCooldown <= 0) {
             scanCooldown = 10;
             scan(client, Math.max(2, Math.min(32, c.ghostRange)));
         }
-
-        // Restoring the original state clears a dismissal. If it disappears again later,
-        // it will therefore become visible again.
         for (Map.Entry<BlockPos, BlockState> entry : remembered.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (client.world.getBlockState(pos).equals(entry.getValue())) {
-                dismissed.remove(pos);
-            }
+            if (client.world.getBlockState(entry.getKey()).equals(entry.getValue())) dismissed.remove(entry.getKey());
         }
-
         boolean middle = GLFW.glfwGetMouseButton(client.getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_MIDDLE) == GLFW.GLFW_PRESS;
         if (middle && !middleWasDown) {
             BlockPos ghost = findGhostUnderCrosshair(client, Math.max(6, Math.min(64, c.ghostRange * 2)));
@@ -71,12 +62,9 @@ public final class BlockMemoryGhost {
     }
 
     private static boolean isGhost(MinecraftClient client, BlockPos pos) {
-        return remembered.containsKey(pos)
-                && !dismissed.contains(pos)
-                && client.world.getBlockState(pos).isAir();
+        return remembered.containsKey(pos) && !dismissed.contains(pos) && client.world.getBlockState(pos).isAir();
     }
 
-    /** Ray-tests virtual ghost cubes because Minecraft's normal crosshair raycast only hits real blocks. */
     private static BlockPos findGhostUnderCrosshair(MinecraftClient client, double maxDistance) {
         Vec3d start = client.gameRenderer.getCamera().getPos();
         Vec3d direction = client.player.getRotationVec(1.0F).normalize();
@@ -96,7 +84,6 @@ public final class BlockMemoryGhost {
         MinecraftClient client = MinecraftClient.getInstance();
         UnifiedConfig c = UnifiedConfig.get();
         if (!c.ghostEnabled || client.world == null || client.player == null || remembered.isEmpty()) return;
-
         VertexConsumerProvider consumers = context.consumers();
         MatrixStack matrices = context.matrixStack();
         if (consumers == null || matrices == null) return;
@@ -105,18 +92,12 @@ public final class BlockMemoryGhost {
         BlockRenderManager renderer = client.getBlockRenderManager();
         matrices.push();
         matrices.translate(-camera.x, -camera.y, -camera.z);
-
         for (Map.Entry<BlockPos, BlockState> entry : remembered.entrySet()) {
             BlockPos pos = entry.getKey();
             if (!isGhost(client, pos)) continue;
-
-            // Render the actual remembered Minecraft block model, so the ghost visibly
-            // tells the player whether the missing block was planks, stone, glass, etc.
             matrices.push();
             matrices.translate(pos.getX(), pos.getY(), pos.getZ());
-            int light = 0xF000F0;
-            renderer.renderBlockAsEntity(entry.getValue(), 0.0D, 0.0D, 0.0D,
-                    client.world, matrices, consumers, light, 0);
+            renderer.renderBlockAsEntity(entry.getValue(), 0.0D, 0.0D, 0.0D, client.world, matrices, consumers, 0xF000F0, 0);
             matrices.pop();
         }
         matrices.pop();
