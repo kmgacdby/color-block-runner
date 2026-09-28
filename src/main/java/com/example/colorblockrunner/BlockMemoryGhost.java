@@ -12,11 +12,14 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 public final class BlockMemoryGhost {
     private static final Map<BlockPos, BlockState> remembered = new LinkedHashMap<>();
-    private static final Map<BlockPos, Long> clearedUntil = new LinkedHashMap<>();
+    private static final Set<BlockPos> ghosts = new LinkedHashSet<>();
+    private static final Set<BlockPos> cleared = new LinkedHashSet<>();
     private static int range = 16;
     private static boolean enabled = false;
     private static boolean autoPlace = false;
@@ -36,7 +39,8 @@ public final class BlockMemoryGhost {
 
     public static void clearAll() {
         remembered.clear();
-        clearedUntil.clear();
+        ghosts.clear();
+        cleared.clear();
     }
 
     public static void tick(MinecraftClient client) {
@@ -48,8 +52,21 @@ public final class BlockMemoryGhost {
                 for (int z = center.getZ() - r; z <= center.getZ() + r; z++) {
                     BlockPos pos = new BlockPos(x, y, z);
                     if (center.getSquaredDistance(pos) > (double) r * r) continue;
-                    BlockState current = client.world.getBlockState(pos);
-                    remembered.putIfAbsent(pos.toImmutable(), current);
+                    BlockPos key = pos.toImmutable();
+                    BlockState current = client.world.getBlockState(key);
+                    BlockState original = remembered.get(key);
+
+                    if (original == null) {
+                        if (!current.isAir()) remembered.put(key, current);
+                        continue;
+                    }
+
+                    if (current.isAir()) {
+                        if (!original.isAir() && !cleared.contains(key)) ghosts.add(key);
+                    } else {
+                        ghosts.remove(key);
+                        cleared.remove(key);
+                    }
                 }
             }
         }
@@ -57,15 +74,13 @@ public final class BlockMemoryGhost {
     }
 
     public static boolean isGhost(MinecraftClient client, BlockPos pos) {
-        BlockState original = remembered.get(pos);
-        if (original == null || clearedUntil.containsKey(pos)) return false;
-        BlockState current = client.world.getBlockState(pos);
-        return current.isAir() && !original.isAir();
+        return ghosts.contains(pos) && remembered.containsKey(pos) && client.world != null && client.world.getBlockState(pos).isAir();
     }
 
     public static boolean cancelAt(MinecraftClient client, BlockPos pos) {
         if (!isGhost(client, pos)) return false;
-        clearedUntil.put(pos.toImmutable(), System.currentTimeMillis());
+        ghosts.remove(pos);
+        cleared.add(pos.toImmutable());
         return true;
     }
 
@@ -79,12 +94,12 @@ public final class BlockMemoryGhost {
         double camY = context.camera().getPos().y;
         double camZ = context.camera().getPos().z;
         BlockRenderManager renderer = client.getBlockRenderManager();
-        for (Map.Entry<BlockPos, BlockState> entry : remembered.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (!isGhost(client, pos)) continue;
+        for (BlockPos pos : ghosts) {
+            BlockState state = remembered.get(pos);
+            if (state == null || !isGhost(client, pos)) continue;
             matrices.push();
             matrices.translate(pos.getX() - camX, pos.getY() - camY, pos.getZ() - camZ);
-            renderer.renderBlockAsEntity(entry.getValue(), matrices, consumers, 15728880, 0);
+            renderer.renderBlockAsEntity(state, matrices, consumers, 15728880, 0);
             matrices.pop();
         }
     }
@@ -95,15 +110,11 @@ public final class BlockMemoryGhost {
         BlockPos best = null;
         BlockState bestState = null;
         double bestDistance = Double.MAX_VALUE;
-        for (Map.Entry<BlockPos, BlockState> entry : remembered.entrySet()) {
-            BlockPos pos = entry.getKey();
-            if (!isGhost(client, pos)) continue;
+        for (BlockPos pos : ghosts) {
+            BlockState state = remembered.get(pos);
+            if (state == null || !isGhost(client, pos)) continue;
             double distance = client.player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                best = pos;
-                bestState = entry.getValue();
-            }
+            if (distance < bestDistance) { bestDistance = distance; best = pos; bestState = state; }
         }
         if (best == null || bestDistance > 64.0) return;
         int slot = findHotbarBlock(client, bestState);
