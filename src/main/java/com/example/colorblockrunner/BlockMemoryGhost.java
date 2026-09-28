@@ -3,10 +3,16 @@ package com.example.colorblockrunner;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerInteractionManager;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 
@@ -20,6 +26,7 @@ public final class BlockMemoryGhost {
     private static final Set<BlockPos> dismissed = new HashSet<>();
     private static boolean middleWasDown;
     private static int scanCooldown;
+    private static long nextPlaceAt;
 
     private BlockMemoryGhost() {}
 
@@ -39,6 +46,13 @@ public final class BlockMemoryGhost {
             if (ghost != null) dismissed.add(ghost.toImmutable());
         }
         middleWasDown = middle;
+        if (c.ghostAutoPlace && System.currentTimeMillis() >= nextPlaceAt) {
+            if (tryAutoPlaceNearest(client)) {
+                nextPlaceAt = System.currentTimeMillis() + Math.max(50, Math.min(2000, c.ghostPlaceDelay));
+            } else {
+                nextPlaceAt = System.currentTimeMillis() + 100;
+            }
+        }
     }
 
     private static void scan(MinecraftClient client, int radius) {
@@ -79,6 +93,54 @@ public final class BlockMemoryGhost {
         return null;
     }
 
+    private static boolean tryAutoPlaceNearest(MinecraftClient client) {
+        if (client.player == null || client.world == null || client.interactionManager == null) return false;
+        BlockPos best = null;
+        BlockState bestState = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (Map.Entry<BlockPos, BlockState> entry : remembered.entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (!isGhost(client, pos)) continue;
+            double distance = client.player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = pos;
+                bestState = entry.getValue();
+            }
+        }
+        if (best == null || bestDistance > 64.0) return false;
+        int slot = findHotbarBlock(client, bestState);
+        if (slot < 0) return false;
+        BlockHitResult hit = findPlacementHit(client, best);
+        if (hit == null) return false;
+
+        int oldSlot = client.player.getInventory().getSelectedSlot();
+        client.player.getInventory().setSelectedSlot(slot);
+        client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, hit);
+        client.player.getInventory().setSelectedSlot(oldSlot);
+        return true;
+    }
+
+    private static int findHotbarBlock(MinecraftClient client, BlockState desired) {
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = client.player.getInventory().getStack(i);
+            if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() == desired.getBlock() && !stack.isEmpty()) return i;
+        }
+        return -1;
+    }
+
+    private static BlockHitResult findPlacementHit(MinecraftClient client, BlockPos ghost) {
+        for (Direction face : Direction.values()) {
+            BlockPos support = ghost.offset(face.getOpposite());
+            if (!client.world.isChunkLoaded(support.getX() >> 4, support.getZ() >> 4)) continue;
+            BlockState supportState = client.world.getBlockState(support);
+            if (supportState.isAir() || supportState.getCollisionShape(client.world, support).isEmpty()) continue;
+            Vec3d hitPos = Vec3d.ofCenter(support).add(Vec3d.of(face.getVector()).multiply(0.5D));
+            return new BlockHitResult(hitPos, face, support, false);
+        }
+        return null;
+    }
+
     public static void render(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
         UnifiedConfig c = UnifiedConfig.get();
@@ -104,5 +166,6 @@ public final class BlockMemoryGhost {
     public static void clearAll() {
         remembered.clear();
         dismissed.clear();
+        nextPlaceAt = System.currentTimeMillis() + 250;
     }
 }
