@@ -11,6 +11,8 @@ public final class UnifiedConfig {
  public boolean stewEnabled=false,runnerEnabled=false,ghostEnabled=false,dodgeEnabled=false;
  public int menuKey=79,stewDelay=100,runnerRange=32,ghostRange=16,dodgeRange=24;
  public boolean runnerJump=true,runnerSprint=true,ignoreOwnArrows=true,showLanding=true;
+ public boolean ghostAutoPlace=false;
+ public int ghostPlaceDelay=250;
  public int stewKey=72,runnerKey=74,ghostKey=75,dodgeKey=75;
  private static UnifiedConfig instance;
  public static UnifiedConfig get(){if(instance==null)load();return instance;}
