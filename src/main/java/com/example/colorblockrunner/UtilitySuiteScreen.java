@@ -51,11 +51,18 @@ public final class UtilitySuiteScreen extends Screen {
             rowText(d, x, y, "状态", c.runnerEnabled); slider(d, x, y + 42, "搜索范围", c.runnerRange, 4, 64, 2, " 格");
             rowTextAt(d, x, y + 84, "疾跑", c.runnerSprint); rowTextAt(d, x, y + 120, "跳跃", c.runnerJump);
         } else {
-            rowText(d, x, y, "状态", c.ghostEnabled); slider(d, x, y + 42, "记录范围", c.ghostRange, 4, 32, 3, " 格");
-            d.drawTextWithShadow(textRenderer, "原方块消失后显示记忆虚影", x, y + 82, 0xFF87909E);
-            d.drawTextWithShadow(textRenderer, "中键点按虚影可暂时取消；恢复后再次消失会重现", x, y + 100, 0xFF87909E);
-            d.fill(x, y + 118, width - 48, y + 148, 0xFF303640);
-            d.drawCenteredTextWithShadow(textRenderer, "清除全部虚影", (x + width - 48) / 2, y + 128, 0xFFE8EDF3);
+            rowText(d, x, y, "状态", c.ghostEnabled);
+            slider(d, x, y + 42, "记录范围", c.ghostRange, 4, 32, 3, " 格");
+            d.drawTextWithShadow(textRenderer, "原方块消失后显示记忆虚影", x, y + 77, 0xFF87909E);
+            d.drawTextWithShadow(textRenderer, "中键点按虚影可暂时取消；恢复后再次消失会重现", x, y + 95, 0xFF87909E);
+
+            // Prominent action button: always visible in the ghost detail panel.
+            d.fill(x, y + 112, width - 48, y + 146, 0xFF3A4555);
+            d.fill(x, y + 112, x + 4, y + 146, 0xFF86A9FF);
+            d.drawCenteredTextWithShadow(textRenderer, "清除全部虚影", (x + width - 48) / 2, y + 124, 0xFFF3F7FC);
+
+            rowTextAt(d, x, y + 159, "自动放置缺失方块", c.ghostAutoPlace);
+            slider(d, x, y + 194, "放置间隔", c.ghostPlaceDelay, 50, 2000, 4, " ms");
         }
     }
     private void rowText(DrawContext d, int x, int y, String label, boolean on) { rowTextAt(d,x,y,label,on); }
@@ -68,8 +75,8 @@ public final class UtilitySuiteScreen extends Screen {
     private int keyFor(int i){UnifiedConfig c=UnifiedConfig.get();return i==0?c.stewKey:i==1?c.runnerKey:c.ghostKey;}
     private String keyName(int key){try{return InputUtil.fromKeyCode(key,0).getLocalizedText().getString();}catch(Exception e){return "NONE";}}
     private void toggle(int i){UnifiedConfig c=UnifiedConfig.get();if(i==0)c.stewEnabled=!c.stewEnabled;else if(i==1)c.runnerEnabled=!c.runnerEnabled;else c.ghostEnabled=!c.ghostEnabled;c.save();}
-    private void setSlider(UnifiedConfig c,int id,double mouseX){int x=310,sw=width-48-x;double t=Math.max(0,Math.min(1,(mouseX-x)/(double)sw));if(id==1)c.stewDelay=50+(int)Math.round(t*1950);else if(id==2)c.runnerRange=4+(int)Math.round(t*60);else c.ghostRange=4+(int)Math.round(t*28);c.save();}
-    private void toggleDetail(UnifiedConfig c,int id){if(selected==1){if(id==4)c.runnerSprint=!c.runnerSprint;else if(id==5)c.runnerJump=!c.runnerJump;}c.save();}
+    private void setSlider(UnifiedConfig c,int id,double mouseX){int x=310,sw=width-48-x;double t=Math.max(0,Math.min(1,(mouseX-x)/(double)sw));if(id==1)c.stewDelay=50+(int)Math.round(t*1950);else if(id==2)c.runnerRange=4+(int)Math.round(t*60);else if(id==3)c.ghostRange=4+(int)Math.round(t*28);else if(id==4)c.ghostPlaceDelay=50+(int)Math.round(t*1950);c.save();}
+    private void toggleDetail(UnifiedConfig c,int id){if(selected==1){if(id==4)c.runnerSprint=!c.runnerSprint;else if(id==5)c.runnerJump=!c.runnerJump;}else if(selected==2&&id==6){c.ghostAutoPlace=!c.ghostAutoPlace;}c.save();}
     private void startBinding(){binding=selected;}
 
     @Override public boolean mouseClicked(double mx,double my,int button){
@@ -79,7 +86,12 @@ public final class UtilitySuiteScreen extends Screen {
         if(mx>=x&&mx<=width-48){UnifiedConfig c=UnifiedConfig.get();int y=top+57;
             if(selected==0&&my>=y+35&&my<=y+75){setSlider(c,1,mx);dragging=1;return true;}
             if(selected==1){if(my>=y+35&&my<=y+75){setSlider(c,2,mx);dragging=2;return true;}if(my>=y+76&&my<=y+112){toggleDetail(c,4);return true;}if(my>=y+113&&my<=y+149){toggleDetail(c,5);return true;}}
-            if(selected==2){if(my>=y+35&&my<=y+75){setSlider(c,3,mx);dragging=3;return true;}if(my>=y+118&&my<=y+150){BlockMemoryGhost.clearAll();if(client!=null&&client.player!=null)client.player.sendMessage(Text.literal("方块记忆虚影：已清除全部"),true);return true;}}
+            if(selected==2){
+                if(my>=y+35&&my<=y+75){setSlider(c,3,mx);dragging=3;return true;}
+                if(my>=y+108&&my<=y+150){BlockMemoryGhost.clearAll();if(client!=null&&client.player!=null)client.player.sendMessage(Text.literal("方块记忆虚影：已清除全部"),true);return true;}
+                if(my>=y+151&&my<=y+184){toggleDetail(c,6);return true;}
+                if(my>=y+187&&my<=y+232){setSlider(c,4,mx);dragging=4;return true;}
+            }
         }
         return super.mouseClicked(mx,my,button);
     }
