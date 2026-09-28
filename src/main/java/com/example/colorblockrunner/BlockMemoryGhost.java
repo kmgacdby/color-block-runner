@@ -69,13 +69,23 @@ public final class BlockMemoryGhost {
         return true;
     }
 
-    public static void render(MinecraftClient client, MatrixStack matrices, VertexConsumerProvider consumers) {
+    public static void render(net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext context) {
+        MinecraftClient client = MinecraftClient.getInstance();
         if (!enabled || client.world == null) return;
+        MatrixStack matrices = context.matrixStack();
+        VertexConsumerProvider consumers = context.consumers();
+        if (matrices == null || consumers == null || context.camera() == null) return;
+        double camX = context.camera().getPos().x;
+        double camY = context.camera().getPos().y;
+        double camZ = context.camera().getPos().z;
         BlockRenderManager renderer = client.getBlockRenderManager();
         for (Map.Entry<BlockPos, BlockState> entry : remembered.entrySet()) {
             BlockPos pos = entry.getKey();
             if (!isGhost(client, pos)) continue;
-            renderer.renderBlockAsEntity(entry.getValue(), pos.getX(), pos.getY(), pos.getZ(), client.world, matrices, consumers.getBuffer(net.minecraft.client.render.RenderLayer.getTranslucent()), 15728880, 0);
+            matrices.push();
+            matrices.translate(pos.getX() - camX, pos.getY() - camY, pos.getZ() - camZ);
+            renderer.renderBlockAsEntity(entry.getValue(), matrices, consumers, 15728880, 0);
+            matrices.pop();
         }
     }
 
