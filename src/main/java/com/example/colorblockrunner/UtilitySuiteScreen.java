@@ -45,7 +45,7 @@ public final class UtilitySuiteScreen extends Screen {
     private void drawDetails(DrawContext d, int x, int y, int mx, int my) {
         UnifiedConfig c = UnifiedConfig.get();
         if (selected == 0) {
-            rowText(d, x, y, "状态", c.stewEnabled); slider(d, x, y + 42, "搬运间隔", c.stewDelay, 50, 2000, 1, " ms");
+            rowText(d, x, y, "状态", c.stewEnabled); slider(d, x, y + 42, "搬运间隔", c.stewDelay, 1, 2000, 1, " ms");
             d.drawTextWithShadow(textRenderer, "仅在实际打开背包界面时工作；副手不参与", x, y + 77, 0xFF87909E);
         } else if (selected == 1) {
             rowText(d, x, y, "状态", c.runnerEnabled); slider(d, x, y + 42, "搜索范围", c.runnerRange, 4, 64, 2, " 格");
@@ -62,7 +62,7 @@ public final class UtilitySuiteScreen extends Screen {
             d.drawCenteredTextWithShadow(textRenderer, "清除全部虚影", (x + width - 48) / 2, y + 124, 0xFFF3F7FC);
 
             rowTextAt(d, x, y + 159, "自动放置缺失方块", c.ghostAutoPlace);
-            slider(d, x, y + 194, "放置间隔", c.ghostPlaceDelay, 50, 2000, 4, " ms");
+            slider(d, x, y + 194, "放置间隔", c.ghostPlaceDelay, 1, 2000, 4, " ms");
         }
     }
     private void rowText(DrawContext d, int x, int y, String label, boolean on) { rowTextAt(d,x,y,label,on); }
@@ -75,7 +75,7 @@ public final class UtilitySuiteScreen extends Screen {
     private int keyFor(int i){UnifiedConfig c=UnifiedConfig.get();return i==0?c.stewKey:i==1?c.runnerKey:c.ghostKey;}
     private String keyName(int key){try{return InputUtil.fromKeyCode(key,0).getLocalizedText().getString();}catch(Exception e){return "NONE";}}
     private void toggle(int i){UnifiedConfig c=UnifiedConfig.get();if(i==0)c.stewEnabled=!c.stewEnabled;else if(i==1)c.runnerEnabled=!c.runnerEnabled;else c.ghostEnabled=!c.ghostEnabled;c.save();}
-    private void setSlider(UnifiedConfig c,int id,double mouseX){int x=310,sw=width-48-x;double t=Math.max(0,Math.min(1,(mouseX-x)/(double)sw));if(id==1)c.stewDelay=50+(int)Math.round(t*1950);else if(id==2)c.runnerRange=4+(int)Math.round(t*60);else if(id==3)c.ghostRange=4+(int)Math.round(t*28);else if(id==4)c.ghostPlaceDelay=50+(int)Math.round(t*1950);c.save();}
+    private void setSlider(UnifiedConfig c,int id,double mouseX){int x=310,sw=width-48-x;double t=Math.max(0,Math.min(1,(mouseX-x)/(double)sw));if(id==1)c.stewDelay=1+(int)Math.round(t*1999);else if(id==2)c.runnerRange=4+(int)Math.round(t*60);else if(id==3)c.ghostRange=4+(int)Math.round(t*28);else if(id==4)c.ghostPlaceDelay=1+(int)Math.round(t*1999);c.save();}
     private void toggleDetail(UnifiedConfig c,int id){if(selected==1){if(id==4)c.runnerSprint=!c.runnerSprint;else if(id==5)c.runnerJump=!c.runnerJump;}else if(selected==2&&id==6){c.ghostAutoPlace=!c.ghostAutoPlace;}c.save();}
     private void startBinding(){binding=selected;}
 
@@ -94,6 +94,19 @@ public final class UtilitySuiteScreen extends Screen {
             }
         }
         return super.mouseClicked(mx,my,button);
+    }
+    @Override public boolean mouseScrolled(double mx,double my,double horizontalAmount,double verticalAmount){
+        int y=48+57;
+        boolean overInterval=(selected==0&&my>=y+35&&my<=y+75)||(selected==2&&my>=y+187&&my<=y+232);
+        if(overInterval&&verticalAmount!=0){
+            UnifiedConfig c=UnifiedConfig.get();
+            int delta=verticalAmount>0?1:-1;
+            if(selected==0)c.stewDelay=Math.max(1,Math.min(2000,c.stewDelay+delta));
+            else if(selected==2)c.ghostPlaceDelay=Math.max(1,Math.min(2000,c.ghostPlaceDelay+delta));
+            c.save();
+            return true;
+        }
+        return super.mouseScrolled(mx,my,horizontalAmount,verticalAmount);
     }
     @Override public boolean mouseDragged(double mx,double my,int button,double dx,double dy){if(dragging>0){setSlider(UnifiedConfig.get(),dragging,mx);return true;}return super.mouseDragged(mx,my,button,dx,dy);}
     @Override public boolean mouseReleased(double mx,double my,int button){dragging=-1;return super.mouseReleased(mx,my,button);}
