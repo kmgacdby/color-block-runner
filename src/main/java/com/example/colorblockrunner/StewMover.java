@@ -17,7 +17,7 @@ public final class StewMover {
             resetTimer();
             return;
         }
-        long now = System.currentTimeMillis();
+        long now = System.nanoTime();
         if (now < nextMoveAt) return;
         var handler = inventoryScreen.getScreenHandler();
         int source = -1;
@@ -30,7 +30,7 @@ public final class StewMover {
         }
         if (source < 0 || target < 0) return;
         client.interactionManager.clickSlot(handler.syncId, source, target - 36, SlotActionType.SWAP, client.player);
-        nextMoveAt = now + Math.max(50, c.stewDelay);
+        nextMoveAt = now + Math.max(1L, c.stewDelay) * 1_000_000L;
     }
 
     public static void resetTimer() { nextMoveAt = 0L; }
