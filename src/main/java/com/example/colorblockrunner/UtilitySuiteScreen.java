@@ -17,7 +17,9 @@ public final class UtilitySuiteScreen extends Screen {
     @Override public void render(DrawContext d, int mx, int my, float delta) {
         d.fill(0, 0, width, height, 0xF20A1018);
         int left = 34, top = 48, w = 250, row = 62, right = 310;
-        d.fill(left - 12, top - 36, width - 28, height - 30, 0xF214202B);\n        d.fill(left - 12, top - 36, width - 28, top - 33, 0xFF65D8D0);\n        d.fill(left - 12, top - 33, left - 9, height - 30, 0xFF3C8FAD);
+        d.fill(left - 12, top - 36, width - 28, height - 30, 0xF214202B);
+        d.fill(left - 12, top - 36, width - 28, top - 33, 0xFF65D8D0);
+        d.fill(left - 12, top - 33, left - 9, height - 30, 0xFF3C8FAD);
         d.drawTextWithShadow(textRenderer, "PRISM / UTILITY", left, top - 21, 0xFFF2F4F8);
         d.drawTextWithShadow(textRenderer, "功能中枢", left + 57, top - 21, 0xFF8DA9B8);
         d.drawTextWithShadow(textRenderer, "左键 开关   ·   右键 详情   ·   中键 绑定", left + 250, top - 21, 0xFF85A0AF);
