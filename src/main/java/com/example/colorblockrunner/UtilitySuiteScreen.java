@@ -15,38 +15,38 @@ public final class UtilitySuiteScreen extends Screen {
     protected UtilitySuiteScreen(Screen parent) { super(Text.literal("Utility Suite")); this.parent = parent; }
 
     @Override public void render(DrawContext d, int mx, int my, float delta) {
-        d.fill(0, 0, width, height, 0xEE0E1017);
+        d.fill(0, 0, width, height, 0xF20A1018);
         int left = 34, top = 48, w = 250, row = 62, right = 310;
-        d.fill(left - 10, top - 34, width - 30, height - 34, 0xCC171A23);
-        d.drawTextWithShadow(textRenderer, "UTILITY", left, top - 21, 0xFFF2F4F8);
-        d.drawTextWithShadow(textRenderer, "功能中心", left + 57, top - 21, 0xFF9EA7B7);
-        d.drawTextWithShadow(textRenderer, "左键 开关   ·   右键 详情   ·   中键 绑定", left + 250, top - 21, 0xFF8E97A7);
+        d.fill(left - 12, top - 36, width - 28, height - 30, 0xF214202B);\n        d.fill(left - 12, top - 36, width - 28, top - 33, 0xFF65D8D0);\n        d.fill(left - 12, top - 33, left - 9, height - 30, 0xFF3C8FAD);
+        d.drawTextWithShadow(textRenderer, "PRISM / UTILITY", left, top - 21, 0xFFF2F4F8);
+        d.drawTextWithShadow(textRenderer, "功能中枢", left + 57, top - 21, 0xFF8DA9B8);
+        d.drawTextWithShadow(textRenderer, "左键 开关   ·   右键 详情   ·   中键 绑定", left + 250, top - 21, 0xFF85A0AF);
 
         for (int i = 0; i < 3; i++) {
             int y = top + i * row; boolean on = isEnabled(i); boolean sel = i == selected;
-            d.fill(left, y, left + w, y + 50, sel ? 0xFF303744 : 0xFF20242D);
-            d.fill(left, y, left + 4, y + 50, on ? 0xFF7FD4B1 : 0xFF5C6471);
+            d.fill(left, y, left + w, y + 50, sel ? 0xFF243C49 : 0xFF172630);
+            d.fill(left, y, left + 4, y + 50, on ? 0xFF65D8D0 : 0xFF425461);
             d.drawTextWithShadow(textRenderer, names[i], left + 16, y + 9, 0xFFF2F4F8);
-            d.drawTextWithShadow(textRenderer, on ? "已开启" : "已关闭", left + 16, y + 29, on ? 0xFF8FE1BC : 0xFF8D95A3);
-            d.drawTextWithShadow(textRenderer, keyName(keyFor(i)), left + w - 56, y + 19, 0xFFDDE2EA);
+            d.drawTextWithShadow(textRenderer, on ? "已开启" : "已关闭", left + 16, y + 29, on ? 0xFF70E0CF : 0xFF78909D);
+            d.drawTextWithShadow(textRenderer, keyName(keyFor(i)), left + w - 56, y + 19, 0xFFB7D9E2);
         }
 
         int rx = right, ry = top;
         d.drawTextWithShadow(textRenderer, names[selected], rx, ry, 0xFFF2F4F8);
-        d.drawTextWithShadow(textRenderer, "DETAILS", rx, ry + 20, 0xFF737D8C);
-        d.fill(rx, ry + 38, width - 48, ry + 39, 0xFF343A45);
+        d.drawTextWithShadow(textRenderer, "DETAILS", rx, ry + 20, 0xFF5FAEBA);
+        d.fill(rx, ry + 38, width - 48, ry + 39, 0xFF29434D);
         drawDetails(d, rx, ry + 57, mx, my);
 
         int bindY = height - 67;
-        d.fill(rx, bindY, width - 48, bindY + 28, binding >= 0 ? 0xFF4B6D62 : 0xFF292E38);
-        d.drawCenteredTextWithShadow(textRenderer, binding >= 0 ? "按下键盘按键 · ESC 取消" : "中键绑定：" + keyName(keyFor(selected)), (rx + width - 48) / 2, bindY + 9, 0xFFEAF0F4);
+        d.fill(rx, bindY, width - 48, bindY + 28, binding >= 0 ? 0xFF205B60 : 0xFF1C303B);
+        d.drawCenteredTextWithShadow(textRenderer, binding >= 0 ? "按下键盘按键 · ESC 取消" : "中键绑定：" + keyName(keyFor(selected)), (rx + width - 48) / 2, bindY + 9, 0xFFE2F8FA);
     }
 
     private void drawDetails(DrawContext d, int x, int y, int mx, int my) {
         UnifiedConfig c = UnifiedConfig.get();
         if (selected == 0) {
             rowText(d, x, y, "状态", c.stewEnabled); slider(d, x, y + 42, "搬运间隔", c.stewDelay, 1, 2000, 1, " ms");
-            d.drawTextWithShadow(textRenderer, "仅在实际打开背包界面时工作；副手不参与", x, y + 77, 0xFF87909E);
+            d.drawTextWithShadow(textRenderer, "仅在实际打开背包界面时工作；副手不参与", x, y + 77, 0xFF829BA7);
         } else if (selected == 1) {
             rowText(d, x, y, "状态", c.runnerEnabled); slider(d, x, y + 42, "搜索范围", c.runnerRange, 4, 64, 2, " 格");
             rowTextAt(d, x, y + 84, "疾跑", c.runnerSprint); rowTextAt(d, x, y + 120, "跳跃", c.runnerJump);
@@ -57,19 +57,19 @@ public final class UtilitySuiteScreen extends Screen {
             d.drawTextWithShadow(textRenderer, "中键点按虚影可暂时取消；恢复后再次消失会重现", x, y + 95, 0xFF87909E);
 
             // Prominent action button: always visible in the ghost detail panel.
-            d.fill(x, y + 112, width - 48, y + 146, 0xFF3A4555);
-            d.fill(x, y + 112, x + 4, y + 146, 0xFF86A9FF);
-            d.drawCenteredTextWithShadow(textRenderer, "清除全部虚影", (x + width - 48) / 2, y + 124, 0xFFF3F7FC);
+            d.fill(x, y + 112, width - 48, y + 146, 0xFF203C49);
+            d.fill(x, y + 112, x + 4, y + 146, 0xFF65D8D0);
+            d.drawCenteredTextWithShadow(textRenderer, "清除全部虚影", (x + width - 48) / 2, y + 124, 0xFFE6FAFB);
 
             rowTextAt(d, x, y + 159, "自动放置缺失方块", c.ghostAutoPlace);
             slider(d, x, y + 194, "放置间隔", c.ghostPlaceDelay, 1, 2000, 4, " ms");
         }
     }
     private void rowText(DrawContext d, int x, int y, String label, boolean on) { rowTextAt(d,x,y,label,on); }
-    private void rowTextAt(DrawContext d, int x, int y, String label, boolean on) { d.drawTextWithShadow(textRenderer,label,x,y,0xFFE5E9EF); d.drawTextWithShadow(textRenderer,on?"ON":"OFF",x+220,y,on?0xFF8FE1BC:0xFF858E9B); }
+    private void rowTextAt(DrawContext d, int x, int y, String label, boolean on) { d.drawTextWithShadow(textRenderer,label,x,y,0xFFD5E8EC); d.drawTextWithShadow(textRenderer,on?"ON":"OFF",x+220,y,on?0xFF8FE1BC:0xFF718995); }
     private void slider(DrawContext d,int x,int y,String label,int value,int min,int max,int id,String suffix){
-        d.drawTextWithShadow(textRenderer,label,x,y,0xFFE5E9EF); d.drawTextWithShadow(textRenderer,value+suffix,x+205,y,0xFFAFC6FF);
-        int sy=y+18, sw=width-48-x; d.fill(x,sy,x+sw,sy+3,0xFF3C424D); int knob=x+(int)((value-min)/(double)(max-min)*sw); d.fill(x,sy,knob,sy+3,0xFF86A9FF); d.fill(knob-4,sy-4,knob+4,sy+11,0xFFDDE8FF);
+        d.drawTextWithShadow(textRenderer,label,x,y,0xFFE5E9EF); d.drawTextWithShadow(textRenderer,value+suffix,x+205,y,0xFF91E5E0);
+        int sy=y+18, sw=width-48-x; d.fill(x,sy,x+sw,sy+3,0xFF2B414B); int knob=x+(int)((value-min)/(double)(max-min)*sw); d.fill(x,sy,knob,sy+3,0xFF86A9FF); d.fill(knob-4,sy-4,knob+4,sy+11,0xFFE4FFFF);
     }
     private boolean isEnabled(int i){UnifiedConfig c=UnifiedConfig.get();return i==0?c.stewEnabled:i==1?c.runnerEnabled:c.ghostEnabled;}
     private int keyFor(int i){UnifiedConfig c=UnifiedConfig.get();return i==0?c.stewKey:i==1?c.runnerKey:c.ghostKey;}
