@@ -182,14 +182,12 @@ public final class BlockMemoryGhost {
         int oldSlot = client.player.getInventory().selectedSlot;
         try {
             client.player.getInventory().selectedSlot = slot;
-            client.interactionManager.syncSelectedSlot();
             client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND, hit);
             client.player.swingHand(Hand.MAIN_HAND);
             lastAttemptedPos = target.toImmutable();
             lastPlaceNanos = now;
         } finally {
             client.player.getInventory().selectedSlot = oldSlot;
-            client.interactionManager.syncSelectedSlot();
         }
     }
 
